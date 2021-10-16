@@ -58,14 +58,19 @@ NS500451:154:HWKTMBGXX:1:11101:18996:1145:TTCGCCTA	0	2	130171653	36	40M1I30M	*	0
   
 (Side note Everything that gets added to the dictionary will be added to a new output file. Where as the things that match things within the dictionary will not be added to the new output file as those are duplicates.)
   
-Functions:
+  
+--------------------------------------------------------------------------------------------------------
+
+## Functions:
 
 add_cigar_to_pos():
+
   Add the soft clipped ends to the beginning of the start position. This will be used for comparison with the positions in the 
   UMI dict
   After comparison it would remove them so it adds the original if the position isn't found in the dict.
   
 line_split_samline():
+
   split a samfile line into the correct parts and then store those values in the multiple variables. 
   
 
