@@ -7,7 +7,7 @@ def get_args():
     parser.add_argument('-f', '--file', help='Upload the sorted SAM file', required=True, type=str)
     parser.add_argument('-p', '--paired', help='Pass True or False for if they are paired or not. Default=False', required=True, default=False, type=bool)
     parser.add_argument('-u', '--umi', help='Specify path to UMI file that is separated by newlines.', required=True, type=str)
-    parser.add_argument('-o', '--output', help='Specify the output file')
+    parser.add_argument('-o', '--output', help='Specify the output file name, it will habe the .sam postfix', required=True, type=str)
     return parser.parse_args()
 
 # Load argparse info into a variable
@@ -32,7 +32,7 @@ def get_important_information(read_file_line: str):
     # return the strand from the flag
     strand = check_strand(flag)
     
-    return umi_qname, strand, rname, pos, cigar
+    return read_file_line, umi_qname, strand, rname, pos, cigar
 
 def add_cigar_to_pos(cigar_variable, position):
     """
@@ -104,7 +104,23 @@ def duplicates(lst, item):
     return [i for i, x in enumerate(lst) if x == item]
 
 
-def check_duplicate(umi_qname, pos, strand, chrom, umi_dict):
+def check_chromsome(current_chrom, chrom_in_sam, umi_dict):
+    """If the chroms don't match then clear the lists in the dictionary as we have moved onto a new 
+    chromosome and don't need to retain that info"""
+    if current_chrom != chrom_in_sam:
+        print("Clearing Dict: Line 111")
+        for key in umi_dict:
+            umi_dict[key]['pos'].clear()
+            umi_dict[key]['chromosome'].clear()
+            umi_dict[key]['strand'].clear()
+            umi_dict[key]['quality_score'].clear()
+
+    return umi_dict
+    
+        
+
+
+def check_duplicate(umi_qname_v, pos_v, strand_v, chrom_v, umi_dict_variable, current_chrom):
     """
     Take the important variables and check them against the umi dictionary. First we check that the umi is present, then you go a level deeper
     and look at the chromosome. Then strand, and then pos. 
@@ -112,18 +128,20 @@ def check_duplicate(umi_qname, pos, strand, chrom, umi_dict):
     If it is not in the dictionary then it will add it to the dictionary. As that is not a duplicate and needs to be stored
     so we can check to see if any new lines look like that read.
     """
+    # if chromosome is different then delete all the info within the dictionary since we are now moving onto a different chromosome
+    umi_dict_actual = check_chromsome(current_chrom, chrom_v, umi_dict_variable)
 
     # First we need to check to see if the umi is within the dictionary keys
-    check_umi = umi_qname in umi_dict
-    
+    check_umi = umi_qname_v in umi_dict_variable
+
     # Get the lower level dictionary of that umi.
     if check_umi:    
-        lower_level = umi_dict[umi_qname]
+        lower_level = umi_dict_actual[umi_qname]
 
         # Check to see if the chrom is in the 'chromosome' key
-        if chrom in lower_level['chromosome']:
+        if chrom_v in lower_level['chromosome']:
             # Pull out all indexes where the matching chromosome is
-            index_list = duplicates(lower_level['chromosome'], chrom)
+            index_list = duplicates(lower_level['chromosome'], chrom_v)
             # Loop through index list
             for index in index_list:
 
@@ -132,10 +150,10 @@ def check_duplicate(umi_qname, pos, strand, chrom, umi_dict):
                 strand_i = lower_level['strand'][index]
                 
                 # Check to see if the strands are the same
-                if strand_i == strand:
+                if strand_i == strand_v:
 
                     # Check to see if the pos is the same
-                    if pos_i == pos:
+                    if pos_i == pos_v:
                         return True
                     
                     # Go to the next index if the position doesn't match
@@ -154,11 +172,14 @@ def check_duplicate(umi_qname, pos, strand, chrom, umi_dict):
 
 ########################################## Script Logic
 
+# Set past_chrome variable 
+past_chrome = 1
 
 # Create UMI dictionary
 umi_dict = instantiate_duplicate_dictionary(args.umi)
 
-output_file = open()
+# Create the output_file to write for
+output_file = open(f'/Users/andrewpowers/bioinformatics/Bi610_Professional/Deduper-PowersPope/output/{args.output}.sam', 'w')
 
 # Load in the file
 with open(args.file, 'r') as sam_file:
@@ -168,25 +189,48 @@ with open(args.file, 'r') as sam_file:
         # Read in lines that are only read lines
         if r'@' not in sam_line:
             # Store the variables
-            umi_qname, strand, rname, pos, cigar = get_important_information(sam_line)
+            full_line, umi_qname, strand, rname, pos, cigar = get_important_information(sam_line)
 
             # Change the start position
             updated_pos = add_cigar_to_pos(cigar, pos)
 
-            duplicate = check_duplicate(umi_qname, updated_pos, strand, rname, umi_dict)
-
-            if duplicate:
+            # This return a bool or a str result to check if the read is found within the dictionary.
+            duplicate = check_duplicate(umi_qname, updated_pos, strand, rname, umi_dict, past_chrome)
+            print(duplicate, "Line 199", sep='\t')
+            
+            # If duplicate is a string then the umi is not correct so just move on to the next read
+            if type(duplicate) == str:
+                print('Throwing away crappy UMI read: line 202')
+                past_chrome = rname
                 next
+
+            # If duplicate is True then move onto the next read
+            elif duplicate:
+                print('Moving on, this read is a duplicate: line 208')
+                past_chrome = rname
+                next
+            
+            # If duplicate is False then it isn't a duplicate, so add to the dictionary
             else:
-                umi_dict[umi_qname]['pos'].append(updated_pos)
+                print('else: 214')
+                umi_dict[umi_qname]['pos'].append(int(updated_pos))
                 umi_dict[umi_qname]['chromosome'].append(rname)
                 umi_dict[umi_qname]['strand'].append(strand)
 
                 
-                # Also, write to a file
-                # f.wrtie(umid_dict) Blah
-            print(duplicate)
+                # Also, write to a output file
+                print('Writing to File: 220')
+                output_file.write(full_line)
+
+                # Move to next line
+                past_chrome = rname
+                next
+        
+        # Write all of the header lines to the output file already
+        else:
+            output_file.write(sam_line)
 
 
+output_file.close()
             
 
