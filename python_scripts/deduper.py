@@ -196,30 +196,30 @@ with open(args.file, 'r') as sam_file:
 
             # This return a bool or a str result to check if the read is found within the dictionary.
             duplicate = check_duplicate(umi_qname, updated_pos, strand, rname, umi_dict, past_chrome)
-            print(duplicate, "Line 199", sep='\t')
+            #print(duplicate, "Line 199", sep='\t')
             
             # If duplicate is a string then the umi is not correct so just move on to the next read
             if type(duplicate) == str:
-                print('Throwing away crappy UMI read: line 202')
+                #print('Throwing away crappy UMI read: line 202')
                 past_chrome = rname
                 next
 
             # If duplicate is True then move onto the next read
             elif duplicate:
-                print('Moving on, this read is a duplicate: line 208')
+                #print('Moving on, this read is a duplicate: line 208')
                 past_chrome = rname
                 next
             
             # If duplicate is False then it isn't a duplicate, so add to the dictionary
             else:
-                print('else: 214')
+                #print('else: 214')
                 umi_dict[umi_qname]['pos'].append(int(updated_pos))
                 umi_dict[umi_qname]['chromosome'].append(rname)
                 umi_dict[umi_qname]['strand'].append(strand)
 
                 
                 # Also, write to a output file
-                print('Writing to File: 220')
+                #print('Writing to File: 220')
                 output_file.write(full_line)
 
                 # Move to next line
