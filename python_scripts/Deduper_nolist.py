@@ -283,9 +283,12 @@ past_chrome = 1
 # Create UMI dictionary
 umi_created_set = instantiate_umi_set(args.umi)
 
-###### Run script
+# Storing dict
 read_dict = dict()
 
+
+
+###### Run script
 
 # Create the output_file to write for
 output_file = open(f'/Users/andrewpowers/bioinformatics/Bi610_Professional/Deduper-PowersPope/output/{args.output}_{run_id}.sam', 'w')
