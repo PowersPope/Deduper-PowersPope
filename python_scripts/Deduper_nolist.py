@@ -1,6 +1,7 @@
 import argparse
 import random
 import numpy as np
+import re
 
 
 # Import in the sam file that is sorted
@@ -57,29 +58,82 @@ def add_cigar_to_pos(cigar_variable, position, strand):
     """
     # Check to see if there is an S in the cigar_variable
     soft_clipping = 'S' in cigar_variable
+    
     # If there is soft clipping then do this
     if soft_clipping:
-        # first get the amount that was soft clipped off
-        cigar_clipped = cigar_variable.split('S')[0]
+
+        # First break up the line:
+        split_cigar = re.findall('\d+[A-Z]{1}', cigar_variable)
 
         # Then we check the orientation of the read
         if strand == 'forward':
-            # Now calculate the new position for the forward strand
-            new_pos = int(position) - int(cigar_clipped)
+            
+            # If S is in the first position then we need to subtract it
+            if 'S' in split_cigar[0]:
+
+                # first get the amount that was soft clipped off
+                cigar_clipped = cigar_variable.split('S')[0]
+
+                # Now calculate the new position for the forward strand
+                new_pos = int(position) - int(cigar_clipped)
+
+            else:
+                # Just return position as we don't care about soft clipping at the end of the read for forward strands
+                new_pos = position
         # This means it is the reverse strand so we add the soft clipped ends back on
         else:
-            new_pos = (int(position) - int(cigar_clipped)) + 101
+            
+            # instantiate a sum
+            sum = 0
+
+            # First we have to remove the first S if it is in it.
+            if 'S' in split_cigar[0]:
+                # Remove that item the S
+                split_cigar.remove(0)
+
+                # Iter through the elements in the list and add them all up so I know how much to add
+                for elem in split_cigar:
+                    if 'I' in elem:
+                        split_cigar.remove(split_cigar.index(elem))
+                    else:
+                        sum += int(re.sub('[A-Z]', '', elem))
+            
+            # If the first elem isnt an S then we just go through the same logic as above.
+            else:
+                for elem in split_cigar:
+                    if 'I' in elem:
+                        split_cigar.remove(split_cigar.index(elem))
+                    else:
+                        sum += int(re.sub('[A-Z]', '', elem))
+            
+
+            new_pos = int(position) - sum
 
     
     # If there is no soft clipping present then check what strand
     else:
+
+         # First break up the line:
+        split_cigar = re.findall('\d+[A-Z]{1}', cigar_variable)
+
         # If forward spit out the same position
         if strand == 'forward':
         
             new_pos = int(position)
         # If reverse and no S then just add 101 to the POS to get 5' since POS is left most.
         else:
-            new_pos = int(position) + 101
+            sum = 0
+
+            if 'S' in split_cigar[0]:
+                split_cigar.remove(0)
+                for elem in split_cigar:
+                    if 'I' in elem:
+                        split_cigar.remove(split_cigar.index(elem))
+                    else:
+                        sum += int(re.sub('[A-Z]', '', elem))
+            
+
+            new_pos = int(position) - sum
 
     
     return new_pos
@@ -291,7 +345,7 @@ read_dict = dict()
 ###### Run script
 
 # Create the output_file to write for
-output_file = open(f'/Users/andrewpowers/bioinformatics/Bi610_Professional/Deduper-PowersPope/output/{args.output}_{run_id}.sam', 'w')
+output_file = open(f'/Users/andrewpowers/bioinformatics/Bi610_Professional/Deduper-PowersPope/output/{args.output}_{run_id}_deduped.sam', 'w')
 
 # Load in the file
 with open(args.file, 'r') as sam_file:
