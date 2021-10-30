@@ -94,7 +94,7 @@ def add_cigar_to_pos(cigar_variable, position, strand):
                 # Iter through the elements in the list and add them all up so I know how much to add
                 for elem in split_cigar:
                     if 'I' in elem:
-                        split_cigar.remove(split_cigar.index(elem))
+                        split_cigar.remove(elem)
                     else:
                         sum += int(re.sub('[A-Z]', '', elem))
             
@@ -102,7 +102,7 @@ def add_cigar_to_pos(cigar_variable, position, strand):
             else:
                 for elem in split_cigar:
                     if 'I' in elem:
-                        split_cigar.remove(split_cigar.index(elem))
+                        split_cigar.remove(elem)
                     else:
                         sum += int(re.sub('[A-Z]', '', elem))
             
@@ -128,13 +128,13 @@ def add_cigar_to_pos(cigar_variable, position, strand):
                 split_cigar.remove(0)
                 for elem in split_cigar:
                     if 'I' in elem:
-                        split_cigar.remove(split_cigar.index(elem))
+                        split_cigar.remove(elem)
                     else:
                         sum += int(re.sub('[A-Z]', '', elem))
             else:
                 for elem in split_cigar:
                     if 'I' in elem:
-                        split_cigar.remove(split_cigar.index(elem))
+                        split_cigar.remove(elem)
                     else:
                         sum += int(re.sub('[A-Z]', '', elem))
             
