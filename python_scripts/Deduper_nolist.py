@@ -326,7 +326,7 @@ run_id = random.randint(1, 100000)
 
 # If -ds is flagged True then create this file.
 if args.store_duplicates == True:
-    duplicate_file = open(f'/Users/andrewpowers/bioinformatics/Bi610_Professional/Deduper-PowersPope/output/duplicates/{args.duplicate_output}_{run_id}.sam',
+    duplicate_file = open(f'output/duplicates/{args.duplicate_output}_{run_id}.sam',
     'w')
 else:
     duplicate_file = None
@@ -345,7 +345,7 @@ read_dict = dict()
 ###### Run script
 
 # Create the output_file to write for
-output_file = open(f'/Users/andrewpowers/bioinformatics/Bi610_Professional/Deduper-PowersPope/output/{args.output}_{run_id}_deduped.sam', 'w')
+output_file = open(f'output/{args.output}_{run_id}_deduped.sam', 'w')
 
 # Load in the file
 with open(args.file, 'r') as sam_file:
