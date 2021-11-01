@@ -181,7 +181,7 @@ def convert_phred(asci_char_str):
     return [ord(x) + 33 for x in asci_char_str]
 
 
-def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_file, duplicate_file):
+def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_file, duplicate_file, last_chrom):
     """Take in a read and checks to see if this read already exists in the dictionary. If it does not then it is stored into the dictionary.
     This will be the main chunk of code that will be running for our analysis.
 
@@ -201,19 +201,12 @@ def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_fi
 
     ################# We need to check what chromosome we are on, if it is a new one then write all reads to the file and clear the dictionary.
 
-    # if dict_length > 1 check last added chrom against the currently pulled one.
-    if dict_length > 1:
-        # Pull out the last entry in the dict
-        last_entry = list(storing_dict.keys())[-1]
-        # Check to see if we are still on the same chromosome
-        if storing_dict[last_entry][2] != rname:
+    if last_chrom != rname:
             # Iter through the dict and write them to the output file
             for key in storing_dict:
                 output_file.write(storing_dict[key][0])
             # Clear the dictionary as we are on a new chromosome now
             storing_dict.clear()
-        else:
-            pass
     else:
         pass
 
@@ -222,6 +215,7 @@ def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_fi
 
     # First we check to see if the umi has any values set
     if args.umi == 'random':
+        print('Random UMI')
         
         # Look for Ns in the UMI
         if 'N' not in umi_qname:
@@ -230,13 +224,14 @@ def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_fi
             updated_pos = add_cigar_to_pos(cigar, pos, strand)
 
             # Create the key needed to be checked and or put into the dict
-            key_string = umi_qname + "-" + strand + "-" + str(updated_pos) + "-" + rname
+            key_string = umi_qname + "-" + strand + "-" + str(updated_pos)
 
             # Check to see if it is in the dict
             if key_string in storing_dict:
                 
                 # We need to check to see if the user wants higher quality scores
                 if args.quality == True:
+                    print('Random Quality True')
                     # Check the quality scores against each other
                     if np.mean(convert_phred(quality_score)) > np.mean(convert_phred(storing_dict[key_string][1])):
 
@@ -244,40 +239,41 @@ def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_fi
                         if args.store_duplicates == True:
                             duplicate_file.write(storing_dict[key_string][0])
                         else:
-                            None
+                            rname
 
                         # Replace the read with the better quality one.
-                        storing_dict[key_string] = (full_line, quality_score, rname)
+                        storing_dict[key_string] = (full_line, quality_score)
 
                     # The quality is not better so do not overwrite this dict entry
                     else:
                         # If the user wants duplicates stored then write to duplicate file
                         if args.store_duplicates == True:
                             duplicate_file.write(full_line)
-                            return None
+                            return rname
                         else:
-                            return None
+                            return rname
                 
                 # If not then don't do anything as we already have this entry present, but check stored_duplicate arg first
                 else:
                     if args.store_duplicates == True:
                         duplicate_file.write(full_line)
-                        return None
+                        return rname
                     else:
-                        return None
+                        return rname
             
             # There is no entry in the dict yet, this is a new read. We have to add it.        
             else:
-                storing_dict[key_string] = (full_line, quality_score, rname)
-                return None
+                storing_dict[key_string] = (full_line, quality_score)
+                return rname
 
         # If it isn't then throw it out.
         else:
-            return None
+            return rname
 
 
     # We have known UMIs we will follow this logic 
     else:
+        print('Known UMI')
         # Check to see if the umi is in the set
         if umi_qname in umi_set:
             
@@ -285,13 +281,15 @@ def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_fi
             updated_pos = add_cigar_to_pos(cigar, pos, strand)
 
             # Create the key needed to be checked and or put into the dict
-            key_string = umi_qname + "-" + strand + "-" + str(updated_pos) + "-" + rname
+            key_string = umi_qname + "-" + strand + "-" + str(updated_pos)
+            print('Known UMI key')
 
             # Check to see if it is in the dict
             if key_string in storing_dict:
                 
                 # We need to check to see if the user wants higher quality scores
                 if args.quality == True:
+                    print('Quality True Known UMI')
                     # Check the quality scores against each other
                     if np.mean(convert_phred(quality_score)) > np.mean(convert_phred(storing_dict[key_string][1])):
 
@@ -302,33 +300,33 @@ def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_fi
                             None
 
                         # Replace the read with the better quality one.
-                        storing_dict[key_string] = (full_line, quality_score, rname)
+                        storing_dict[key_string] = (full_line, quality_score)
 
                     # The quality is not better so do not overwrite this dict entry
                     else:
                         # If the user wants duplicates stored then write to duplicate file
                         if args.store_duplicates == True:
                             duplicate_file.write(full_line)
-                            return None
+                            return rname
                         else:
-                            return None
+                            return rname
                 
                 # If not then don't do anything as we already have this entry present, but check stored_duplicate arg first
                 else:
                     if args.store_duplicates == True:
                         duplicate_file.write(full_line)
-                        return None
+                        return rname
                     else:
-                        return None
+                        return rname
             
             # There is no entry in the dict yet, this is a new read. We have to add it.        
             else:
-                storing_dict[key_string] = (full_line, quality_score, rname)
-                return None
+                storing_dict[key_string] = (full_line, quality_score)
+                return rname
 
         # If it isn't then throw it out.
         else:
-            return None
+            return rname
 
 ########################################## Script Logic
 
@@ -353,12 +351,13 @@ umi_created_set = instantiate_umi_set(args.umi)
 # Storing dict
 read_dict = dict()
 
-
-
 ###### Run script
 
 # Create the output_file to write for
 output_file = open(f'output/{args.output}_{run_id}_deduped.sam', 'w')
+
+# Set first chrom
+last_chrom = 1
 
 # Load in the file
 with open(args.file, 'r') as sam_file:
@@ -366,13 +365,13 @@ with open(args.file, 'r') as sam_file:
     # Iter through each line
     for sam_line in sam_file:
         line_number += 1
-        if 500000 % 0 == line_number:
+        if line_number % 10000 == 0:
             print(line_number)
         # Read in lines that are only read lines
         if r'@' not in sam_line:
             
             # Run operation function
-            store_or_check_read_against_dict(sam_line, read_dict, umi_created_set, output_file, duplicate_file)
+            last_chrom = store_or_check_read_against_dict(sam_line, read_dict, umi_created_set, output_file, duplicate_file, last_chrom)
 
         
         # Write all of the header lines to the output file already
