@@ -56,6 +56,7 @@ def add_cigar_to_pos(cigar_variable, position, strand):
     If the strand is forward then it would subtract the soft clipped end to the 5' of the forward start position.
     If the strand is reverse then it would add the soft clipped end to the 5' of the reverse start position.
     """
+
     # Check to see if there is an S in the cigar_variable
     soft_clipping = 'S' in cigar_variable
     
@@ -141,7 +142,6 @@ def add_cigar_to_pos(cigar_variable, position, strand):
 
             new_pos = int(position) - sum
 
-    
     return new_pos
 
 def check_strand(bitflag):
@@ -326,6 +326,7 @@ def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_fi
                 storing_dict[key_string] = (full_line, quality_score, rname)
                 return None
 
+        
         # If it isn't then throw it out.
         else:
             return None
@@ -366,7 +367,7 @@ with open(args.file, 'r') as sam_file:
     # Iter through each line
     for sam_line in sam_file:
         line_number += 1
-        if 500000 % 0 == line_number:
+        if line_number % 10000 == 0:
             print(line_number)
         # Read in lines that are only read lines
         if r'@' not in sam_line:

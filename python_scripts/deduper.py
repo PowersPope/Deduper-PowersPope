@@ -1,6 +1,7 @@
 import argparse
 import random
 import numpy as np
+import re
 
 
 # Import in the sam file that is sorted
@@ -13,6 +14,8 @@ def get_args():
     parser.add_argument('-ds', '--store_duplicates', help='Specify if you would like duplicates returned to a separate file. \
         Type True or False. If set True, you must specify output file name with argument -do', default=False, type=bool)
     parser.add_argument('-do', '--duplicate_output', help='Specify the file to duplicate file name to write to.', default=None, type=str)
+    parser.add_argument('-q', '--quality', help='Set to True if you want to have the best quality read returned instead \
+        of the first duplicate. Default=False', default=False, type=bool)
 
     return parser.parse_args()
 
@@ -52,26 +55,92 @@ def add_cigar_to_pos(cigar_variable, position, strand):
     If the strand is forward then it would subtract the soft clipped end to the 5' of the forward start position.
     If the strand is reverse then it would add the soft clipped end to the 5' of the reverse start position.
     """
+
     # Check to see if there is an S in the cigar_variable
     soft_clipping = 'S' in cigar_variable
+    
     # If there is soft clipping then do this
     if soft_clipping:
-        # first get the amount that was soft clipped off
-        cigar_clipped = cigar_variable.split('S')[0]
+
+        # First break up the line:
+        split_cigar = re.findall('\d+[A-Z]{1}', cigar_variable)
 
         # Then we check the orientation of the read
         if strand == 'forward':
-            # Now calculate the new position for the forward strand
-            new_pos = int(position) - int(cigar_clipped)
+            
+            # If S is in the first position then we need to subtract it
+            if 'S' in split_cigar[0]:
+
+                # first get the amount that was soft clipped off
+                cigar_clipped = cigar_variable.split('S')[0]
+
+                # Now calculate the new position for the forward strand
+                new_pos = int(position) - int(cigar_clipped)
+
+            else:
+                # Just return position as we don't care about soft clipping at the end of the read for forward strands
+                new_pos = position
         # This means it is the reverse strand so we add the soft clipped ends back on
         else:
-            new_pos = int(position) + int(cigar_clipped)
+            
+            # instantiate a sum
+            sum = 0
 
-    # If there is no soft clipping present then just spit back out the position
-    else:
-        new_pos = position 
+            # First we have to remove the first S if it is in it.
+            if 'S' in split_cigar[0]:
+                # Remove that item the S
+                split_cigar.remove(split_cigar[0])
+
+                # Iter through the elements in the list and add them all up so I know how much to add
+                for elem in split_cigar:
+                    if 'I' in elem:
+                        split_cigar.remove(elem)
+                    else:
+                        sum += int(re.sub('[A-Z]', '', elem))
+            
+            # If the first elem isnt an S then we just go through the same logic as above.
+            else:
+                for elem in split_cigar:
+                    if 'I' in elem:
+                        split_cigar.remove(elem)
+                    else:
+                        sum += int(re.sub('[A-Z]', '', elem))
+            
+
+            new_pos = int(position) - sum
 
     
+    # If there is no soft clipping present then check what strand
+    else:
+        
+        # If forward spit out the same position
+        if strand == 'forward':
+        
+            new_pos = int(position)
+        # If reverse and no S then just add 101 to the POS to get 5' since POS is left most.
+        else:
+            # First break up the line:
+            split_cigar = re.findall('\d+[A-Z]{1}', cigar_variable)
+
+            sum = 0
+
+            if 'S' in split_cigar[0]:
+                split_cigar.remove(0)
+                for elem in split_cigar:
+                    if 'I' in elem:
+                        split_cigar.remove(elem)
+                    else:
+                        sum += int(re.sub('[A-Z]', '', elem))
+            else:
+                for elem in split_cigar:
+                    if 'I' in elem:
+                        split_cigar.remove(elem)
+                    else:
+                        sum += int(re.sub('[A-Z]', '', elem))
+            
+
+            new_pos = int(position) - sum
+
     return new_pos
 
 def check_strand(bitflag):
@@ -214,32 +283,33 @@ def check_duplicate(umi_qname_v, pos_v, strand_v, chrom_v, umi_dict_variable, cu
     if check_umi:    
         lower_level = umi_dict_actual[umi_qname]
 
-        # Check to see if the chrom is in the 'chromosome' key
-        if chrom_v in lower_level['chromosome']:
+        # # Check to see if the chrom is in the 'chromosome' key
+        # if chrom_v in lower_level['chromosome']:
             
-            # Pull out all indexes where the matching chromosome is
-            index_list = duplicates(lower_level['chromosome'], chrom_v)
-            
-            # Loop through index list
-            for index in index_list:
+        # Pull out all indexes where the matching chromosome is
+        index_list = duplicates(lower_level['pos'], pos_v)
+        
+        # Loop through index list
+        for index in index_list:
 
-                # pull out each pos and strand at that index
-                pos_i = lower_level['pos'][index]
-                strand_i = lower_level['strand'][index]
+            # pull out each pos and strand at that index
+            #pos_i = lower_level['pos'][index]
+            strand_i = lower_level['strand'][index]
+            
+            # Check to see if the strands are the same
+            if strand_i == strand_v:
+                return True, index, window
+
+                # Check to see if the pos is the same
+                # if pos_i == pos_v:
+                #     return True, index, window
                 
-                # Check to see if the strands are the same
-                if strand_i == strand_v:
-
-                    # Check to see if the pos is the same
-                    if pos_i == pos_v:
-                        return True, index, window
-                    
-                    # Go to the next index if the position doesn't match
-                    else:
-                        next
-                # Go to the next index if the strand doesn't match
-                else:
-                    next
+                # # Go to the next index if the position doesn't match
+                # else:
+                #     next
+            # Go to the next index if the strand doesn't match
+            else:
+                next
 
     # umi isn't in the keys and doesn't need to be added to anything.
     else:
@@ -276,10 +346,17 @@ sliding_window = list()
 # Create the output_file to write for
 output_file = open(f'output/{args.output}_{run_id}.sam', 'w')
 
+# Line count
+count = 0
+
 # Load in the file
 with open(args.file, 'r') as sam_file:
     # Iter through each line
     for sam_line in sam_file:
+        count += 1
+
+        if count % 10000 == 0:
+            print(count)
         
         # Read in lines that are only read lines
         if r'@' not in sam_line:
@@ -287,7 +364,7 @@ with open(args.file, 'r') as sam_file:
             full_line, umi_qname, strand, rname, pos, cigar, quality_score = get_important_information(sam_line)
 
             # Change the start position
-            updated_pos = add_cigar_to_pos(cigar, pos)
+            updated_pos = add_cigar_to_pos(cigar, pos, strand)
 
             # This return a bool or a str result to check if the read is found within the dictionary.
             duplicate, dup_index, sliding_window = check_duplicate(umi_qname, updated_pos, strand, rname, umi_dict, past_chrome, sliding_window, output_file)
@@ -302,24 +379,29 @@ with open(args.file, 'r') as sam_file:
             # If duplicate is True then move onto the next read
             elif duplicate:
 
-                # We need to check the quality score of the read
-                #stored_qual = umi_dict[umi_qname]['quality_score'][dup_index]
-                dup_qual = np.mean(convert_phred(quality_score))
+                if args.quality == True:
 
-                qual_check = check_quality_score(dup_qual, sliding_window, updated_pos, full_line)
+                    # We need to check the quality score of the read
+                    #stored_qual = umi_dict[umi_qname]['quality_score'][dup_index]
+                    dup_qual = np.mean(convert_phred(quality_score))
 
-                #print('Moving on, this read is a duplicate: line 208')
-                past_chrome = rname
-                if args.store_duplicates == False:
-                    next
+                    qual_check = check_quality_score(dup_qual, sliding_window, updated_pos, full_line)
+
+                    #print('Moving on, this read is a duplicate: line 208')
+                    past_chrome = rname
+                    if args.store_duplicates == False:
+                        next
+                    else:
+                        duplicate_file.write(full_line)
+
                 else:
-                    duplicate_file.write(full_line)
+                    None
             
             # If duplicate is False then it isn't a duplicate, so add to the dictionary
             else:
                 #print('else: 214')
                 umi_dict[umi_qname]['pos'].append(int(updated_pos))
-                umi_dict[umi_qname]['chromosome'].append(rname)
+                #umi_dict[umi_qname]['chromosome'].append(rname)
                 umi_dict[umi_qname]['strand'].append(strand)
                 # Dont think I need to add this actually
                 # umi_dict[umi_qname]['quality_score'].append(np.mean(convert_phred(quality_score)))
