@@ -112,16 +112,16 @@ def add_cigar_to_pos(cigar_variable, position, strand):
     
     # If there is no soft clipping present then check what strand
     else:
-
-         # First break up the line:
-        split_cigar = re.findall('\d+[A-Z]{1}', cigar_variable)
-
+        
         # If forward spit out the same position
         if strand == 'forward':
         
             new_pos = int(position)
         # If reverse and no S then just add 101 to the POS to get 5' since POS is left most.
         else:
+            # First break up the line:
+            split_cigar = re.findall('\d+[A-Z]{1}', cigar_variable)
+
             sum = 0
 
             if 'S' in split_cigar[0]:
@@ -184,6 +184,13 @@ def convert_phred(asci_char_str):
 def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_file, duplicate_file):
     """Take in a read and checks to see if this read already exists in the dictionary. If it does not then it is stored into the dictionary.
     This will be the main chunk of code that will be running for our analysis.
+
+
+    dictionary example:
+
+    dict = {
+        'umi_qname-strand--updated_pos-chrom': (whole read, quality score, chrome)
+        }
     """
 
     # check storing dict length
@@ -355,9 +362,12 @@ output_file = open(f'output/{args.output}_{run_id}_deduped.sam', 'w')
 
 # Load in the file
 with open(args.file, 'r') as sam_file:
+    line_number = 0
     # Iter through each line
     for sam_line in sam_file:
-        
+        line_number += 1
+        if 500000 % 0 == line_number:
+            print(line_number)
         # Read in lines that are only read lines
         if r'@' not in sam_line:
             
