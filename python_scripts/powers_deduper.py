@@ -11,7 +11,6 @@ def get_args():
     parser.add_argument('-p', '--paired', help='Pass True or False for if they are paired or not. Default=False', default=False, type=bool)
     parser.add_argument('-u', '--umi', help='Specify path to UMI file that is separated by newlines. If no UMI file is given then \
         default=random and the program will assume that UMIs are unknown and will generate their own from the reads.', default='random', type=str)
-    parser.add_argument('-o', '--output', help='Specify the output file name, it will habe the .sam postfix', required=True, type=str)
     parser.add_argument('-ds', '--store_duplicates', help='Specify if you would like duplicates returned to a separate file. \
         Set to True. Default=False. If set True, you must specify output file name with argument -do', default=False, type=bool)
     parser.add_argument('-do', '--duplicate_output', help='Specify the file name that the duplicates should be written to.', default=None, type=str)
@@ -335,7 +334,7 @@ run_id = random.randint(1, 100000)
 
 # If -ds is flagged True then create this file.
 if args.store_duplicates == True:
-    duplicate_file = open(f'output/duplicates/{args.duplicate_output}_{run_id}.sam',
+    duplicate_file = open(f'output/duplicates/{args.duplicate_output}.sam',
     'w')
 else:
     duplicate_file = None
@@ -351,8 +350,11 @@ read_dict = dict()
 
 ###### Run script
 
+# Create the output file name
+output_name = re.sub('.sam', '', args.file).split('/')[-1]
+
 # Create the output_file to write for
-output_file = open(f'output/{args.output}_{run_id}_deduped.sam', 'w')
+output_file = open(f'output/{output_name}_deduped.sam', 'w')
 
 # Set first chrom
 last_chrom = 1
