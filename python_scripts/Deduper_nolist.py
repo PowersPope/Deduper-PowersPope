@@ -56,7 +56,6 @@ def add_cigar_to_pos(cigar_variable, position, strand):
     If the strand is forward then it would subtract the soft clipped end to the 5' of the forward start position.
     If the strand is reverse then it would add the soft clipped end to the 5' of the reverse start position.
     """
-
     # Check to see if there is an S in the cigar_variable
     soft_clipping = 'S' in cigar_variable
     
@@ -95,7 +94,7 @@ def add_cigar_to_pos(cigar_variable, position, strand):
                 # Iter through the elements in the list and add them all up so I know how much to add
                 for elem in split_cigar:
                     if 'I' in elem:
-                        split_cigar.remove(elem)
+                        next
                     else:
                         sum += int(re.sub('[A-Z]', '', elem))
             
@@ -103,12 +102,12 @@ def add_cigar_to_pos(cigar_variable, position, strand):
             else:
                 for elem in split_cigar:
                     if 'I' in elem:
-                        split_cigar.remove(elem)
+                        next
                     else:
                         sum += int(re.sub('[A-Z]', '', elem))
             
 
-            new_pos = int(position) - sum
+            new_pos = int(position) + sum
 
     
     # If there is no soft clipping present then check what strand
@@ -129,19 +128,20 @@ def add_cigar_to_pos(cigar_variable, position, strand):
                 split_cigar.remove(0)
                 for elem in split_cigar:
                     if 'I' in elem:
-                        split_cigar.remove(elem)
+                        next
                     else:
                         sum += int(re.sub('[A-Z]', '', elem))
             else:
                 for elem in split_cigar:
                     if 'I' in elem:
-                        split_cigar.remove(elem)
+                        next
                     else:
                         sum += int(re.sub('[A-Z]', '', elem))
             
 
-            new_pos = int(position) - sum
+            new_pos = int(position) + sum
 
+    
     return new_pos
 
 def check_strand(bitflag):
@@ -193,9 +193,6 @@ def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_fi
         }
     """
 
-    # check storing dict length
-    dict_length = len(storing_dict)
-
     # First we break the line into multiple parts
     full_line, umi_qname, strand, rname, pos, cigar, quality_score = get_important_information(read_line)
 
@@ -207,6 +204,7 @@ def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_fi
                 output_file.write(storing_dict[key][0])
             # Clear the dictionary as we are on a new chromosome now
             storing_dict.clear()
+            print('New Chrom Started:', rname, sep='\t')
     else:
         pass
 
@@ -215,7 +213,6 @@ def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_fi
 
     # First we check to see if the umi has any values set
     if args.umi == 'random':
-        print('Random UMI')
         
         # Look for Ns in the UMI
         if 'N' not in umi_qname:
@@ -231,7 +228,6 @@ def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_fi
                 
                 # We need to check to see if the user wants higher quality scores
                 if args.quality == True:
-                    print('Random Quality True')
                     # Check the quality scores against each other
                     if np.mean(convert_phred(quality_score)) > np.mean(convert_phred(storing_dict[key_string][1])):
 
@@ -273,7 +269,6 @@ def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_fi
 
     # We have known UMIs we will follow this logic 
     else:
-        print('Known UMI')
         # Check to see if the umi is in the set
         if umi_qname in umi_set:
             
@@ -282,14 +277,12 @@ def store_or_check_read_against_dict(read_line, storing_dict, umi_set, output_fi
 
             # Create the key needed to be checked and or put into the dict
             key_string = umi_qname + "-" + strand + "-" + str(updated_pos)
-            print('Known UMI key')
 
             # Check to see if it is in the dict
             if key_string in storing_dict:
                 
                 # We need to check to see if the user wants higher quality scores
                 if args.quality == True:
-                    print('Quality True Known UMI')
                     # Check the quality scores against each other
                     if np.mean(convert_phred(quality_score)) > np.mean(convert_phred(storing_dict[key_string][1])):
 
@@ -366,7 +359,7 @@ with open(args.file, 'r') as sam_file:
     # Iter through each line
     for sam_line in sam_file:
         line_number += 1
-        if line_number % 10000 == 0:
+        if line_number % 100000 == 0:
             print(line_number)
         # Read in lines that are only read lines
         if r'@' not in sam_line:
