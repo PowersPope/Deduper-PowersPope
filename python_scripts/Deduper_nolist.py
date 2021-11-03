@@ -28,6 +28,10 @@ if args.store_duplicates == True:
     if args.duplicate_output == None:
         raise ValueError('You did not specify an output for the duplicates. Please use -do and specify and output')
 
+# Check paired arguments
+if args.paired == True:
+    raise ValueError('This has not been implemented yet. Coming soon. Please dont specify True.')
+
 ################################################### Function Section
 
 def get_important_information(read_file_line: str): 
